@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crypto Stamps Fanpage</title>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+  <style>
+    body { margin: 0; background: #f0f0f0; }
+    button { cursor: pointer; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+import React, { useEffect, useMemo, useState } from "react";
+
+// Einfacher, Canvas-kompatibler Aufbau im Stil von cryptostamp.com
+// - keine externen Pakete außer React
+// - gelber Akzent (#FFD400), dunkler/heller Modus
+// - persistentes Portal (Sidebar) bleibt auch auf Versionsseiten sichtbar
+
+const BRAND = {
+  yellow: "#FFD400",
+  darkBg: "#0B0B0B",
+  darkCard: "#121212",
+  darkBorder: "#1F1F1F",
+  lightBg: "#F8FAFC",
+  lightCard: "#FFFFFF",
+  lightBorder: "#E5E7EB",
+};
+
+// Sicherheitsfreundlicher Theme-Hook (Canvas/iFrame safe)
+function useTheme() {
+  const safeGet = (k) => {
+    try { return localStorage.getItem(k); } catch { return null; }
+  };
+  const safeSet = (k, v) => {
+    try { localStorage.setItem(k, v); } catch {}
+  };
+  const prefersDark = () => {
+    try { return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; } catch { return true; }
+  };
+  const initial = (() => {
+    const saved = safeGet('theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return prefersDark() ? 'dark' : 'light';
+  })();
+  const [theme, setTheme] = useState(initial);
+  useEffect(() => { safeSet('theme', theme); }, [theme]);
+  return { theme, setTheme };
+}
+
+// Mini-Icons als Inline-SVG (keine Abhängigkeiten)
+const IconStamp = ({ size=20, color='currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M5 5h14v14H5z"/><path d="M8 9h8M8 13h8M8 17h5"/></svg>
+);
+const IconSearch = ({ size=18, color='currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.3-4.3"/></svg>
+);
+const IconChevronRight = ({ size=16, color='currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+);
+const IconChevronLeft = ({ size=16, color='currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
+);
+const IconSun = ({ size=16, color='currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4 12H2M22 12h-2M5 5l-1.5-1.5M20.5 20.5L19 19M5 19l-1.5 1.5M20.5 3.5L19 5"/></svg>
+);
+const IconMoon = ({ size=16, color='currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+);
+
+// Demo-Daten – ersetzbar durch echte Inhalte
+const VERSIONS = [
+  {
+    id: 'v1',
+    title: 'Crypto Stamp 1.0',
+    subtitle: 'Einhorn (2019)',
+    hero: 'https://images.unsplash.com/photo-1607453996330-0e5356b3e1a7?q=80&w=1600&auto=format&fit=crop',
+    intro: 'Erste Blockchain‑Briefmarke der Österreichischen Post – physisch frankaturgültig und digital als NFT verifizierbar.',
+    details: {
+      release: '11.06.2019',
+      faceValue: '6,90 €',
+      supply: '150.000',
+      chain: 'Ethereum',
+      token: 'ERC‑721',
+      variants: ['Schwarz','Grün','Blau','Gelb','Rot'],
+    },
+    images: [
+      'https://images.unsplash.com/photo-1631351043729-7a3dc858f6fc?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1519681393784-d120267933ba?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1520975922224-7d7b1f3bb3a0?q=80&w=1200&auto=format&fit=crop',
+    ],
+  },
+  {
+    id: 'v2',
+    title: 'Crypto Stamp 2.0',
+    subtitle: 'Neue Motive (2020)',
+    hero: 'https://images.unsplash.com/photo-1483721310020-03333e577078?q=80&w=1600&auto=format&fit=crop',
+    intro: 'Fortsetzung der Reihe mit frischen Designs und konsistenter On‑Chain‑Umsetzung.',
+    details: {
+      release: '2020',
+      faceValue: 'variabel',
+      supply: '—',
+      chain: 'Ethereum',
+      token: 'ERC‑721',
+      variants: ['Mehrere Motive'],
+    },
+    images: [
+      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1545239351-1141bd82e8a6?q=80&w=1200&auto=format&fit=crop',
+      'https://images.unsplash.com/photo-1520975922203-bd2a5a6b9e63?q=80&w=1200&auto=format&fit=crop',
+    ],
+  },
+];
+
+// Hilfs-Styles nach Theme
+const useThemeVars = (theme) => theme === 'dark'
+  ? ({
+      '--bg': BRAND.darkBg,
+      '--card': BRAND.darkCard,
+      '--border': BRAND.darkBorder,
+      '--fg': '#ffffff',
+      '--muted': '#9CA3AF',
+      '--text': '#D1D5DB',
+      '--chip': '#1F2937',
+      '--btn-bg': '#ffffff',
+      '--btn-fg': '#000000',
+    })
+  : ({
+      '--bg': BRAND.lightBg,
+      '--card': BRAND.lightCard,
+      '--border': BRAND.lightBorder,
+      '--fg': '#111827',
+      '--muted': '#6B7280',
+      '--text': '#374151',
+      '--chip': '#EEF2FF',
+      '--btn-bg': '#111827',
+      '--btn-fg': '#ffffff',
+    });
+
+const Header = ({ onHome, onToggleTheme, theme }) => (
+  <header style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)' }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ background: BRAND.yellow, width: 40, height: 40, borderRadius: 8, display: 'grid', placeItems: 'center' }}>
+          <IconStamp />
+        </div>
+        <div>
+          <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', color: 'var(--muted)' }}>Inoffizielles Sammlerportal</div>
+          <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--fg)' }}>Österreichische Crypto Stamps</h1>
+        </div>
+      </div>
+      <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+        <button onClick={onHome} style={{ background: 'var(--btn-bg)', color: 'var(--btn-fg)', border: '1px solid var(--border)', padding: '8px 12px', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          <IconChevronLeft /> Portal
+        </button>
+        <button onClick={onToggleTheme} style={{ border: '1px solid var(--border)', padding: '8px 12px', borderRadius: 8, color: 'var(--fg)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+          {theme === 'dark' ? <><IconSun/> Light</> : <><IconMoon/> Dark</>}
+        </button>
+      </div>
+    </div>
+    {/* Gelber Brand-Balken */}
+    <div style={{ height: 6, background: BRAND.yellow }} />
+  </header>
+);
+
+const Sidebar = ({ activeId, onSelect }) => (
+  <aside style={{ position: 'sticky', top: 86 }}>
+    <div style={{ padding: 12, fontSize: 12, fontWeight: 700, letterSpacing: .6, textTransform: 'uppercase', color: 'var(--muted)' }}>Versionen</div>
+    <div style={{ display: 'grid', gap: 8 }}>
+      {VERSIONS.map((v) => (
+        <button key={v.id} onClick={() => onSelect(v.id)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, border: '1px solid var(--border)', padding: 12, borderRadius: 12, background: activeId === v.id ? 'rgba(255,212,0,0.08)' : 'var(--card)', color: 'var(--fg)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: BRAND.yellow }} />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{v.title}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)' }}>{v.subtitle}</div>
+            </div>
+          </div>
+          <IconChevronRight />
+        </button>
+      ))}
+    </div>
+  </aside>
+);
+
+const Hero = ({ image, title, subtitle }) => (
+  <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, border: '1px solid var(--border)' }}>
+    <img src={image} alt="Hero" style={{ width: '100%', height: 260, objectFit: 'cover', display: 'block' }} />
+    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,.75), rgba(0,0,0,.35), transparent)' }} />
+    <div style={{ position: 'absolute', left: 0, bottom: 0, padding: 18, color: '#fff' }}>
+      <div style={{ fontSize: 22, fontWeight: 800, textShadow: '0 1px 2px rgba(0,0,0,.6)' }}>{title}</div>
+      <div style={{ fontSize: 13, opacity: .95 }}>{subtitle}</div>
+    </div>
+  </div>
+);
+
+const Chip = ({ children }) => (
+  <span style={{ background: 'var(--chip)', color: 'var(--fg)', borderRadius: 8, padding: '4px 8px', fontSize: 12, display: 'inline-flex', alignItems: 'center' }}>{children}</span>
+);
+
+const Spec = ({ label, value }) => (
+  <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 12, border: '1px solid var(--border)', borderRadius: 12, padding: 10, fontSize: 14 }}>
+    <div style={{ color: 'var(--muted)', fontWeight: 600 }}>{label}</div>
+    <div style={{ color: 'var(--fg)' }}>{value}</div>
+  </div>
+);
+
+const VersionPage = ({ id }) => {
+  const v = useMemo(() => VERSIONS.find(x => x.id === id), [id]);
+  if (!v) return null;
+  return (
+    <div style={{ display: 'grid', gap: 16 }}>
+      <Hero image={v.hero} title={v.title} subtitle={v.subtitle} />
+
+      {/* Zwei Karten nebeneinander */}
+      <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+        <div style={{ border: '1px solid var(--border)', borderRadius: 16, background: 'var(--card)' }}>
+          <div style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--fg)' }}><IconSearch/> Allgemeines</div>
+          <div style={{ padding: '0 16px 16px 16px', color: 'var(--text)', lineHeight: 1.6, fontSize: 14 }}>
+            <p>{v.intro}</p>
+          </div>
+        </div>
+        <div style={{ border: '1px solid var(--border)', borderRadius: 16, background: 'var(--card)' }}>
+          <div style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--fg)' }}>Technische Daten</div>
+          <div style={{ padding: 16, display: 'grid', gap: 8 }}>
+            <Spec label="Erscheinungsdatum" value={v.details.release} />
+            <Spec label="Nennwert" value={v.details.faceValue} />
+            <Spec label="Auflage" value={v.details.supply} />
+            <Spec label="Blockchain" value={v.details.chain} />
+            <Spec label="Token‑Standard" value={v.details.token} />
+            <Spec label="Varianten" value={<div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>{v.details.variants.map((x) => <Chip key={x}>{x}</Chip>)}</div>} />
+          </div>
+        </div>
+      </div>
+
+      {/* Galerie */}
+      <div style={{ border: '1px solid var(--border)', borderRadius: 16, background: 'var(--card)' }}>
+        <div style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--fg)' }}>Bildergalerie</div>
+        <div style={{ padding: 16, display: 'grid', gap: 12, gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+          {v.images.map((src, i) => (
+            <div key={i} style={{ overflow: 'hidden', border: '1px solid var(--border)', borderRadius: 12 }}>
+              <img src={src} alt="" style={{ width: '100%', height: 170, objectFit: 'cover', display: 'block', transition: 'transform .3s' }}
+                onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.03)'}
+                onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const PortalCards = ({ onSelect }) => (
+  <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+    {VERSIONS.map((v) => (
+      <div key={v.id} style={{ border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', background: 'var(--card)' }}>
+        <img src={v.hero} alt={v.title} style={{ width: '100%', height: 160, objectFit: 'cover', display: 'block' }} />
+        <div style={{ padding: 14 }}>
+          <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--fg)' }}>{v.title}</div>
+          <div style={{ fontSize: 13, color: 'var(--muted)', margin: '4px 0 10px' }}>{v.subtitle}</div>
+          <button onClick={() => onSelect(v.id)} style={{ background: BRAND.yellow, color: '#000', border: '1px solid var(--border)', padding: '8px 12px', borderRadius: 8, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            Ansehen <IconChevronRight />
+          </button>
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+export default function App() {
+  const [active, setActive] = useState(null);
+  const { theme, setTheme } = useTheme();
+  const vars = useThemeVars(theme);
+
+  return (
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--fg)', ...vars, fontFamily: 'system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji"' }}>
+      <Header onHome={() => setActive(null)} onToggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')} theme={theme} />
+
+      <main style={{ maxWidth: 1100, margin: '0 auto', padding: 16, display: 'grid', gap: 16, gridTemplateColumns: '280px 1fr' }}>
+        {/* Persistentes Portal (Sidebar) */}
+        <Sidebar activeId={active} onSelect={setActive} />
+
+        {/* Hauptbereich: Portal-Start oder Versionsseite */}
+        {!active ? (
+          <div style={{ display: 'grid', gap: 16 }}>
+            {/* Hero-Header auf der Portalseite */}
+            <div style={{ position: 'relative', overflow: 'hidden', borderRadius: 16, border: '1px solid var(--border)' }}>
+              <img src="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?q=80&w=2000&auto=format&fit=crop" alt="Hero" style={{ width: '100%', height: 280, objectFit: 'cover', display: 'block' }} />
+              <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,.8), rgba(0,0,0,.3), transparent)' }} />
+              <div style={{ position: 'absolute', left: 0, bottom: 0, padding: 18, color: '#fff' }}>
+                <div style={{ fontSize: 26, fontWeight: 800, textShadow: '0 1px 2px rgba(0,0,0,.6)' }}>Crypto Stamps – Sammlerportal</div>
+                <div style={{ fontSize: 14, maxWidth: 720, opacity: .95 }}>Alle Versionen der österreichischen Crypto Stamps im Überblick: Bilder, Hintergründe und technische Daten – im einheitlichen, modernen Design.</div>
+              </div>
+            </div>
+
+            {/* Kartenliste */}
+            <PortalCards onSelect={setActive} />
+          </div>
+        ) : (
+          <VersionPage id={active} />
+        )}
+      </main>
+
+      <footer style={{ borderTop: '1px solid var(--border)', padding: '16px 0', marginTop: 16 }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '0 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--muted)', fontSize: 14 }}>
+          <div>© {new Date().getFullYear()} Crypto Stamps Fanpage (inoffiziell)</div>
+          <div>Design-Anlehnung: cryptostamp.com (Farben/Kontrast)</div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+
+const rootElement = document.getElementById("root");
+const root = ReactDOM.createRoot(rootElement);
+root.render(<App />);
+  </script>
+</body>
+</html>
